@@ -1,8 +1,43 @@
 bits 16
 org 0x7c00
 
+%define ENDL 0x0D, 0x0A
+
+
+;
+; FAT12 header
+; 
+jmp short start
+nop
+
+bdb_oem:                    db 'MSWIN4.1'           ; 8 bytes
+bdb_bytes_per_sector:       dw 512
+bdb_sectors_per_cluster:    db 4                    ; 4 sectors (2KB) per cluster. 
+                                                    ; (Standard for FAT16 drives < 128MB)
+bdb_reserved_sectors:       dw 1
+bdb_fat_count:              db 2
+bdb_dir_entries_count:      dw 512                  ; 0x0200. Standard for FAT16 Root Directory
+bdb_total_sectors:          dw 0                    ; Set to 0. FAT16 usually uses bdb_large_sector_count
+bdb_media_descriptor_type:  db 0F8h                 ; F8 = Fixed Disk / Hard Drive
+bdb_sectors_per_fat:        dw 64                   ; Depends on disk size! 
+                                                    ; 64 sectors * 512 = 32KB FAT. 
+                                                    ; Enough to map ~16,000 clusters (approx 32MB disk)
+bdb_sectors_per_track:      dw 32                   ; Geometry varies by HDD image type
+bdb_heads:                  dw 64                   ; Geometry varies by HDD image type
+bdb_hidden_sectors:         dd 0
+bdb_large_sector_count:     dd 65536                ; 0x10000. Total sectors (32MB disk size)
+
+; extended boot record
+ebr_drive_number:           db 80h                  ; 0x80 = Hard Drive (C:), 0x00 = Floppy
+                            db 0                    ; reserved
+ebr_signature:              db 29h
+ebr_volume_id:              db 12h, 34h, 56h, 78h   ; serial number
+ebr_volume_label:           db 'MY       OS'        ; 11 bytes, padded with spaces
+ebr_system_id:              db 'FAT16   '           ; 8 bytes (Must match exactly)
+
 start:
-    ; set up stack
+    mov     [ebr_drive_number], dl
+
     mov     ax, 0
     mov     ds, ax
     mov     es, ax
@@ -10,24 +45,262 @@ start:
     mov     ss, ax
     mov     sp, 0x7c00
 
-    mov     si, msg_my_message
-    call    print
+    mov     si, msg_loading
 
-    mov     bx, 0x1000
+    call    puts
+
+    ; read drive parameters from bios
+    push    es
+    mov     ah, 0x08
+    int     0x13
+    
+    pop     es
+
+    and     cl, 0x3F    ; remove top 2 bits
+    xor     ch, ch
+
+    mov     [bdb_sectors_per_track], cx
+
+    inc     dh
+    mov     [bdb_heads], dh
+
+    ; compute lba of the root Directory
+    mov     ax, [bdb_sectors_per_fat]
+    mov     cl, [bdb_fat_count]
+    xor     ch, ch
+    mul     cl
+
+    add     ax, [bdb_reserved_sectors]
+
+    push    ax  ; now in stack we have the lba of the root dir
+
+    ; compute size of the root Directory
+    mov     ax, [bdb_dir_entries_count]
+    shl     ax, 5   ; *32
+    xor     dx, dx
+    div     word [bdb_bytes_per_sector]
+
+    cmp     dx, 0
+    je      .root_dir_after
+
+    inc     ax
+
+.root_dir_after:
+    ; read root Directory
+    push    ax      ; push the size of the root dir in sectors
+    mov     cl, al
+
+    pop     dx      ; dx is size of root dir in sectors
+    pop     ax      ; ax is lba of the root dir
+
+    push    ax
+
+    add     ax, dx      ; now ax is the start of the data KERNEL_LOAD_SEGMENT
+    mov     [data_start], ax
+    pop     ax
+
+
+    mov     dl, [ebr_drive_number]
+    mov     bx, buffer
+
     call    disk_read
 
-    jmp     0x1000
+    xor     bx, bx
+    mov     di, buffer
 
-.jump
-    jmp     0x2000
+.search_kernel:
+    mov     si, file_kernel_bin
+    mov     cx, 11
+    push    di
+
+    repe    cmpsb
+
+    pop     di
+
+    je      .found_kernel
+
+    ; going via all the directory entries
+    add     di, 32
+    inc     bx
+    cmp     bx, [bdb_dir_entries_count]
+    jl      .search_kernel
+    
+    jmp     kernel_not_found 
+
+.found_kernel:
+
+    mov     ax, [di + 26]   ; first logical cluster field (offset 26)
+    mov     [kernel_cluster], ax
+
+    ; Load FAT from disk into memory
+    mov     ax, [bdb_reserved_sectors]
+    mov     bx, buffer
+    mov     cl, [bdb_sectors_per_fat]
+    mov     dl, [ebr_drive_number]
+    call    disk_read
+
+    mov     bx, KERNEL_LOAD_SEGMENT
+    mov     es, bx
+    mov     bx, KERNEL_LOAD_OFFSET
+
+.load_kernel_loop:
+    ; Read next cluster
+    mov     ax, [kernel_cluster]
+    sub     ax, 2
+    xor     cx, cx
+    mov     cl, [bdb_sectors_per_cluster]
+    mul     cx
+    add     ax, [data_start]            ; now ax is the target sector of the kernel_cluster
+
+    mov     cl, [bdb_sectors_per_cluster]
+    mov     dl, [ebr_drive_number]
+    call    disk_read
+
+    xor     ax, ax
+    mov     al, [bdb_sectors_per_cluster]
+    mov     cx, 512
+    mul     cx                      ; AX = Bytes per cluster
+    add     bx, ax                  ; Advance ES:BX
+
+    mov     ax, [kernel_cluster]
+    shl     ax, 1
+    mov     si, buffer
+    add     si, ax
+    mov     ax, [si]
+    mov     [kernel_cluster], ax
+
+    cmp     ax, 0xFFF8
+    jl      .load_kernel_loop
+
+    mov dl, [ebr_drive_number]  ; Pass boot drive to kernel
+    
+    mov ax, KERNEL_LOAD_SEGMENT
+    mov ds, ax
+    mov es, ax
+    
+    jmp KERNEL_LOAD_SEGMENT:KERNEL_LOAD_OFFSET
 
 
 ;
-; Prints the string from si
+; Error handlers
+;
+
+disk_error:
+    mov     si, msg_read_failed
+    call    puts
+    jmp     wait_key_and_reboot
+
+kernel_not_found:
+    mov     si, msg_kernel_not_found
+    call    puts
+    jmp     wait_key_and_reboot
+
+
+wait_key_and_reboot:
+    mov     ah, 0
+    int     0x16    ; wait for key press
+    jmp     0xFFFF:0x0000   ; start of the BIOS
+
+
+
+
+;
+; ax - lba address
+; cx bits[0-5] - sector number
+; cx bits[6-15] - cylinder number
+; dh - heads number
+;
+lba_to_chs:
+    push    ax
+    push    dx
+    
+    xor     dx, dx
+    div     word [bdb_sectors_per_track]
+    inc     dx
+
+    mov     cx, dx
+
+    xor     dx, dx
+    div     word [bdb_heads]
+
+    mov     ch, al
+    shl     ah, 6
+    or      cl, ah
+    shl     dx, 8
+
+    pop     ax
+    mov     dl, al
+    pop     ax
+    ret
+
+
+;
+; Reads sectors from a disk
 ; Parameters:
-;   - si: adress of the string to print
+;   - ax: LBA address
+;   - cl: number of sectors to read (up to 128)
+;   - dl: drive number
+;   - es:bx: memory address where to store read data
 ;
-print:
+disk_read:
+
+    push ax                             ; save registers we will modify
+    push bx
+    push cx
+    push dx
+    push di
+
+    push cx                             ; temporarily save CL (number of sectors to read)
+    call lba_to_chs                     ; compute CHS
+    pop  ax                             ; AL = number of sectors to read
+    
+    mov ah, 02h
+    mov di, 3                           ; retry count
+
+.retry:
+    pusha                               ; save all registers, we don't know what bios modifies
+    stc                                 ; set carry flag, some BIOS'es don't set it
+    int 13h                             ; carry flag cleared = success
+    jnc .done                           ; jump if carry not set
+
+    ; read failed
+    popa
+    call disk_reset
+
+    dec di
+    test di, di
+    jnz .retry
+
+.fail:
+    ; all attempts are exhausted
+    jmp disk_error
+
+.done:
+    popa
+
+    pop di
+    pop dx
+    pop cx
+    pop bx
+    pop ax                             ; restore registers modified
+    ret
+
+
+;
+; Resets disk controller
+; Parameters:
+;   dl: drive number
+;
+disk_reset:
+    pusha
+    mov ah, 0
+    stc
+    int 13h
+    jc disk_error
+    popa
+    ret
+
+puts:
     push    bx
     push    si
 .loop:
@@ -47,43 +320,17 @@ print:
     ret
 
 
-
-;
-; Read from disk
-;   - es:bx: address where the data goes
-;
-
-disk_read:
-    ; read kernel (1 sector) into memory
-    push    ax
-    push    cx
-    push    dx
-
-    mov     ah, 02h
-    mov     al, 1       ; 1 sector
-    mov     ch, 0       ; cylinder number
-    mov     cl, 2       ; 1 is boot, second is kernel
-    mov     dh, 0       ; head number
-    mov     dl, 0       ; disk number
-
-    int     0x13
-    jc      .read_failed
-
-    pop     dx
-    pop     cx
-    pop     ax
-    ret
-
-
-.read_failed:
-    mov     si, msg_read_failed
-    call    print
-    jmp     $
-
-
-
-msg_my_message db "Hello world!", 0
-msg_read_failed db "Read failed, reboot the system", 0
+msg_loading db "Loading...", ENDL, 0
+read_msg db "read completed", 0
+file_kernel_bin db "KERNEL  BIN"
+KERNEL_LOAD_SEGMENT equ 0x2000
+KERNEL_LOAD_OFFSET equ 0
+kernel_cluster dw 0
+data_start dw 0
+msg_kernel_not_found db "Uzhe nevozmozhno!!!", ENDL, 0
+msg_read_failed db "Read failed.", ENDL, 0
 
 times 510 - ($ - $$) db 0
 dw 0xaa55
+
+buffer:
