@@ -2,7 +2,7 @@
 #include "stdint.h"
 
 int _cdecl cstart(uint16_t bootDrive) {
-    puts("Hello from main!\n\r");
-    printf("Hello dear friend!!! %d   %s", -365, "my long long story");
+    clear();
+    printf("Hello. Welcome to our OS. Please write help for instructions.");
     for(;;);
 }

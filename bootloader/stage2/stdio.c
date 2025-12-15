@@ -18,6 +18,11 @@ void puts(const char* str)
     }
 }
 
+void clear(void)
+{
+    x86_Video_Clear();
+}
+
 #define PRINTF_STATE_DEFAULT 0
 #define PRINTF_STATE_PERCENT 1
 
