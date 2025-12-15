@@ -28,18 +28,27 @@ int getLength(char* str) {
     int counter = 0;
     while (*str) {
         counter++;
+        str++;
     }
     return counter;
 }
 
 void trim(char* str) {
     int length = getLength(str);
-    while (*str == ' ') {
-        str++;
+    int start = 0;
+    int i = 0;
+
+    while (str[start] == ' ') {
+        start++;
     }
 
     while (*(str + length - 1) == ' ') {
         length--;
     }
-    str[length] = '\0';
+
+    for (; i < length - start; i++) {
+        str[i] = str[i + start];
+    }
+
+    str[length - start] = '\0';
 }

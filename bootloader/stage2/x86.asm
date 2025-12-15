@@ -2,6 +2,16 @@ bits 16
 
 section _TEXT class=CODE
 
+global _x86_Shutdown
+_x86_Shutdown:
+    mov     ah, 0x53
+    mov     al, 0x07
+    mov     bx, 0x0001
+    mov     cx, 0x0003
+    int     0x15
+
+    ret
+
 global _x86_Video_Read_Char
 _x86_Video_Read_Char:
     push    bx

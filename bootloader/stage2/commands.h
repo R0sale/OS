@@ -3,7 +3,8 @@
 typedef enum {
     CMD_UNKNOWN = 0,
     CMD_HELP,
-    CMD_CLEAR
+    CMD_CLEAR,
+    CMD_SHUTDOWN
 } CommandType;
 
 typedef struct {
