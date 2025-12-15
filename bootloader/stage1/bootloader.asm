@@ -108,8 +108,8 @@ start:
     xor     bx, bx
     mov     di, buffer
 
-.search_kernel:
-    mov     si, file_kernel_bin
+.search_stage2:
+    mov     si, file_stage2_bin
     mov     cx, 11
     push    di
 
@@ -117,20 +117,20 @@ start:
 
     pop     di
 
-    je      .found_kernel
+    je      .found_stage2
 
     ; going via all the directory entries
     add     di, 32
     inc     bx
     cmp     bx, [bdb_dir_entries_count]
-    jl      .search_kernel
+    jl      .search_stage2
     
-    jmp     kernel_not_found 
+    jmp     stage2_not_found 
 
-.found_kernel:
+.found_stage2:
 
     mov     ax, [di + 26]   ; first logical cluster field (offset 26)
-    mov     [kernel_cluster], ax
+    mov     [stage2_cluster], ax
 
     ; Load FAT from disk into memory
     mov     ax, [bdb_reserved_sectors]
@@ -139,13 +139,13 @@ start:
     mov     dl, [ebr_drive_number]
     call    disk_read
 
-    mov     bx, KERNEL_LOAD_SEGMENT
+    mov     bx, STAGE2_LOAD_SEGMENT
     mov     es, bx
-    mov     bx, KERNEL_LOAD_OFFSET
+    mov     bx, STAGE2_LOAD_OFFSET
 
-.load_kernel_loop:
+.load_stage2_loop:
     ; Read next cluster
-    mov     ax, [kernel_cluster]
+    mov     ax, [stage2_cluster]
     sub     ax, 2
     xor     cx, cx
     mov     cl, [bdb_sectors_per_cluster]
@@ -162,23 +162,23 @@ start:
     mul     cx                      ; AX = Bytes per cluster
     add     bx, ax                  ; Advance ES:BX
 
-    mov     ax, [kernel_cluster]
+    mov     ax, [stage2_cluster]
     shl     ax, 1
     mov     si, buffer
     add     si, ax
     mov     ax, [si]
-    mov     [kernel_cluster], ax
+    mov     [stage2_cluster], ax
 
     cmp     ax, 0xFFF8
-    jl      .load_kernel_loop
+    jl      .load_stage2_loop
 
-    mov dl, [ebr_drive_number]  ; Pass boot drive to kernel
+    mov dl, [ebr_drive_number]  ; Pass boot drive to stage2
     
-    mov ax, KERNEL_LOAD_SEGMENT
+    mov ax, STAGE2_LOAD_SEGMENT
     mov ds, ax
     mov es, ax
     
-    jmp KERNEL_LOAD_SEGMENT:KERNEL_LOAD_OFFSET
+    jmp STAGE2_LOAD_SEGMENT:STAGE2_LOAD_OFFSET
 
 
 ;
@@ -190,8 +190,8 @@ disk_error:
     call    puts
     jmp     wait_key_and_reboot
 
-kernel_not_found:
-    mov     si, msg_kernel_not_found
+stage2_not_found:
+    mov     si, msg_stage2_not_found
     call    puts
     jmp     wait_key_and_reboot
 
@@ -322,12 +322,12 @@ puts:
 
 msg_loading db "Loading...", ENDL, 0
 read_msg db "read completed", 0
-file_kernel_bin db "KERNEL  BIN"
-KERNEL_LOAD_SEGMENT equ 0x2000
-KERNEL_LOAD_OFFSET equ 0
-kernel_cluster dw 0
+file_stage2_bin db "STAGE2  BIN"
+STAGE2_LOAD_SEGMENT equ 0x2000
+STAGE2_LOAD_OFFSET equ 0
+stage2_cluster dw 0
 data_start dw 0
-msg_kernel_not_found db "Uzhe nevozmozhno!!!", ENDL, 0
+msg_stage2_not_found db "There is no stage2!!!", ENDL, 0
 msg_read_failed db "Read failed.", ENDL, 0
 
 times 510 - ($ - $$) db 0
