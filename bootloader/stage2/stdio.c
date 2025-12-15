@@ -23,6 +23,28 @@ void clear(void)
     x86_Video_Clear();
 }
 
+char readKey(void) {
+    char c = x86_Video_Read_Char();
+    putc(c);
+    return c;
+}
+
+void readPrompt(char* buffer)
+{
+    char c;
+    int i = 0;
+    while ((c = readKey()) != '\r') {
+        if (i >= 50) {
+            buffer = NULL;
+            return;
+        }
+        buffer[i++] = c;
+    }
+    putc('\n');
+    buffer[i] = '\0';
+}
+
+
 #define PRINTF_STATE_DEFAULT 0
 #define PRINTF_STATE_PERCENT 1
 
