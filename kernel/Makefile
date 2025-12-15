@@ -8,7 +8,7 @@ all: kernel
 kernel: $(BUILD_DIR)/kernel.bin
 
 $(BUILD_DIR)/kernel.bin: 
-  $(ASM) kernel.asm -f bin -o $@
+	$(ASM) kernel.asm -f bin -o $@
 
 clean:
-  rm -f $(BUILD_DIR)/kernel.bin
+	rm -f $(BUILD_DIR)/kernel.bin
