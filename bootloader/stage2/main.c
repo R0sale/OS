@@ -3,5 +3,6 @@
 
 int _cdecl cstart(uint16_t bootDrive) {
     puts("Hello from main!\n\r");
-    return 0;
+    printf("%% %c %s %c", '0', "my long long string", '2');
+    for(;;);
 }
