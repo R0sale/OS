@@ -1,7 +1,7 @@
 ASM=nasm
 BUILD_DIR?=build/
 ASMFLAGS?=-f obj
-CFLAGS16?= -4 -d3 -s -wx -ms -zl -zq
+CFLAGS16?= -4 -d3 -s -wx -ms -zl -zq -wcd=138 -wcd=303
 LD16?=/snap/open-watcom/2/binl/wlink
 CC16?=/snap/open-watcom/2/binl/wcc
 

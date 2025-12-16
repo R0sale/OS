@@ -1,8 +1,15 @@
 #include "stdio.h"
 #include "stdint.h"
+#include "commands.h"
 
 int _cdecl cstart(uint16_t bootDrive) {
-    puts("Hello from main!\n\r");
-    printf("Hello dear friend!!! %d   %s", -365, "my long long story");
-    for(;;);
+    char buffer[50];
+    CommandType type;
+    clear();
+    printf("Hello. Welcome to our OS. Please write help for instructions.\n\r");
+    while (true) {
+        readPrompt(buffer);
+        type = getCommandType(buffer);
+        handleCommand(type);
+    }
 }
