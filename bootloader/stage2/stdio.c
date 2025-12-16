@@ -34,6 +34,15 @@ void readPrompt(char* buffer)
     char c;
     int i = 0;
     while ((c = readKey()) != '\r') {
+        if (c == 8) {
+            if (i > 0) {
+                i--;
+                putc(' ');
+                x86_Move_Cursor(-1, 0);
+            }
+            continue;
+        }
+
         if (i >= 50) {
             buffer = NULL;
             return;
