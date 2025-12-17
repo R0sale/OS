@@ -2,6 +2,58 @@ bits 16
 
 section _TEXT class=CODE
 
+global _x86_Disk_Get_Drive_Params
+_x86_Disk_Get_Drive_Params:
+    push    bp
+    mov     bp, sp
+    push    dx
+    push    bx
+    push    si
+
+.start:
+    mov     dl, [bp + 4]
+    mov     ah, 0x08
+    int     0x13
+
+    jc     .error
+
+    mov     si, [bp + 10]   ; number of heads
+
+    xor     ax, ax
+    mov     al, dh
+    mov     [si], ax
+
+    mov     al, ch          ; now al has lower bits of cylinders
+    mov     bl, cl
+    shr     bl, 6
+
+    xor     ah, ah
+    or      ah, bl          ; now ax is the cylinder number
+
+    mov     si, [bp + 8]
+    mov     [si], ax
+
+    and     cl, 0x3F        ; now cl has only sectors
+
+    mov     si, [bp + 6]
+    xor     ch, ch
+    mov     [si], cx        
+
+    jmp     .done
+
+.error:
+    xor     ax, ax
+    mov     al, 0
+
+.done:
+    pop     si
+    pop     bx
+    pop     dx
+    mov     sp, bp
+    pop     bp
+    ret
+    
+
 global _x86_Move_Cursor
 _x86_Move_Cursor:
     push    bp

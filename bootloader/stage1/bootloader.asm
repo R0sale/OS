@@ -5,7 +5,7 @@ org 0x7c00
 
 
 ;
-; FAT12 header
+; FAT16 header
 ; 
 jmp short start
 nop
@@ -36,14 +36,14 @@ ebr_volume_label:           db 'MY       OS'        ; 11 bytes, padded with spac
 ebr_system_id:              db 'FAT16   '           ; 8 bytes (Must match exactly)
 
 start:
-    mov     [ebr_drive_number], dl
-
     mov     ax, 0
     mov     ds, ax
     mov     es, ax
 
     mov     ss, ax
     mov     sp, 0x7c00
+
+    mov     [ebr_drive_number], dl
 
     mov     si, msg_loading
 
