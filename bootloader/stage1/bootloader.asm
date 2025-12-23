@@ -144,7 +144,6 @@ start:
     mov     bx, STAGE2_LOAD_OFFSET
 
 .load_stage2_loop:
-    ; Read next cluster
     mov     ax, [stage2_cluster]
     sub     ax, 2
     xor     cx, cx
@@ -170,7 +169,7 @@ start:
     mov     [stage2_cluster], ax
 
     cmp     ax, 0xFFF8
-    jl      .load_stage2_loop
+    jb      .load_stage2_loop
 
     mov dl, [ebr_drive_number]  ; Pass boot drive to stage2
     

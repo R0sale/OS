@@ -1,0 +1,4 @@
+fat.c(279): Warning! E1179: Parameter 1, type qualifier mismatch
+fat.c(279): Note! I2003: source conversion type is 'char const *'
+fat.c(279): Note! I2004: target conversion type is 'char *'
+fat.c(279): Note! I2002: 'getLength' defined in: string.h(9)

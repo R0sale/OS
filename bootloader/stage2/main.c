@@ -7,6 +7,7 @@ int _cdecl cstart(uint16_t bootDrive) {
     char buffer[50];
     DISK disk;
     CommandType type;
+    diskInitialize(&disk, bootDrive);
     clear();
     printf("Hello. Welcome to our OS. Please write help for instructions.\n\r");
     diskInitialize(&disk, bootDrive);
