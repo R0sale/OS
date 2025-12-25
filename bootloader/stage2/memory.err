@@ -1,6 +1,0 @@
-memory.c(12): Warning! W112: Pointer truncated
-memory.c(12): Note! I2003: source conversion type is 'unsigned char __far *'
-memory.c(12): Note! I2004: target conversion type is 'void *'
-memory.c(23): Warning! W112: Pointer truncated
-memory.c(23): Note! I2003: source conversion type is 'unsigned char __far *'
-memory.c(23): Note! I2004: target conversion type is 'void *'
