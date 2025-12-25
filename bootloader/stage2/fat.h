@@ -1,9 +1,8 @@
-
-
 typedef uint8_t bool;
 #define false 0
 #define true 1
 
+#pragma pack(push, 1)
 typedef struct {
     uint8_t BootJumpInstruction[3];
     uint8_t OemName[8];
@@ -14,7 +13,7 @@ typedef struct {
     uint16_t RootEntryCount;
     uint16_t TotalSectors16;
     uint8_t MediaType;
-    uint16_t TableSize16;
+    uint16_t SectorsPerFat;
     uint16_t SectorsPerTrack;
     uint16_t HeadSideCount;
     uint32_t HiddenSectorCount;
@@ -27,12 +26,15 @@ typedef struct {
     uint32_t VolumeId;
     uint8_t VolumeLabel[11];
     uint8_t SystemId[8];
-} __attribute__((packed)) BootSector;
+} BootSector;
+#pragma pack(pop)
 
+#pragma pack(push, 1)
 typedef struct {
     uint8_t FileName[11];
     uint8_t Attributes;
     uint8_t Reserved;
+    uint8_t CreatedTimeTenths;
     uint16_t CreationTime;
     uint16_t CreationDate;
     uint16_t LastAccessedDate;
@@ -41,7 +43,8 @@ typedef struct {
     uint16_t LastModificationDate;
     uint16_t LowFirstClusterNumber;
     uint32_t FileSize;
-} __attribute__((packed)) DirectoryEntry;
+} DirectoryEntry;
+#pragma pack(pop)
 
 typedef struct {
     int Handle;
@@ -60,8 +63,8 @@ enum Attributes {
     ATTRIBUTE_LFN       = ATTRIBUTE_READ_ONLY | ATTRIBUTE_HIDDEN | ATTRIBUTE_SYSTEM | ATTRIBUTE_VOLUME_ID
 };
 
-bool initialize(DISK* disk);
-File* open(DISK* disk, const char* path);
-uint32_t read(DISK* disk, File* file, uint32_t count, void* outData);
-bool readEntry(DISK* disk, FILE* file, DirectoryEntry* entry);
-void close(FILE* file);
+bool fatInitialize(DISK* disk);
+File far* open(DISK* disk, const char* path);
+uint32_t read(DISK* disk, File far* file, uint32_t count, void* outData);
+bool readEntry(DISK* disk, File far* file, DirectoryEntry* entry);
+void close(File far* file);

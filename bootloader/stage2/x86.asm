@@ -2,8 +2,6 @@ bits 16
 
 section _TEXT class=CODE
 
-<<<<<<< Updated upstream
-=======
 global __U4D
 __U4D:
     shl edx, 16         ; dx to upper half of edx
@@ -104,13 +102,15 @@ _x86_Disk_Read:
     mov     ax, [bp + 8]
     mov     ch, al
 
-    xor     ax, ax
+    mov     ax, [bp + 16]
     mov     es, ax
     mov     bx, [bp + 14]
 
     shl     ah, 6
     or      cl, ah
     mov     al, [bp + 12]
+    mov     ah, 0x02
+
     int     0x13
 
     jnc     .done
@@ -148,7 +148,6 @@ _x86_Disk_Reset:
     pop     bp
     ret
 
->>>>>>> Stashed changes
 global _x86_Disk_Get_Drive_Params
 _x86_Disk_Get_Drive_Params:
     push    bp
@@ -190,10 +189,6 @@ _x86_Disk_Get_Drive_Params:
 
 .error:
     xor     ax, ax
-<<<<<<< Updated upstream
-    mov     al, 0
-=======
->>>>>>> Stashed changes
 
 .done:
     pop     si
