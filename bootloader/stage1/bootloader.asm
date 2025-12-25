@@ -3,47 +3,31 @@ org 0x7c00
 
 %define ENDL 0x0D, 0x0A
 
+%define BPB_SIZE 59
+step1_bpb_start:
+    ; You can keep your labels here if your code needs to read them later
+    ; (Once loaded, the values from the DISK will be at these labels)
+    bdb_oem:                    db 'MSWIN4.1'
+    ; ... all your other bdb_ and ebr_ fields here ...
+    ; ...
+    ebr_system_id:              db 'FAT16   '
+step1_bpb_end:
 
-;
-; FAT12 header
-; 
-jmp short start
-nop
-
-bdb_oem:                    db 'MSWIN4.1'           ; 8 bytes
-bdb_bytes_per_sector:       dw 512
-bdb_sectors_per_cluster:    db 4                    ; 4 sectors (2KB) per cluster. 
-                                                    ; (Standard for FAT16 drives < 128MB)
-bdb_reserved_sectors:       dw 1
-bdb_fat_count:              db 2
-bdb_dir_entries_count:      dw 512                  ; 0x0200. Standard for FAT16 Root Directory
-bdb_total_sectors:          dw 0                    ; Set to 0. FAT16 usually uses bdb_large_sector_count
-bdb_media_descriptor_type:  db 0F8h                 ; F8 = Fixed Disk / Hard Drive
-bdb_sectors_per_fat:        dw 64                   ; Depends on disk size! 
-                                                    ; 64 sectors * 512 = 32KB FAT. 
-                                                    ; Enough to map ~16,000 clusters (approx 32MB disk)
-bdb_sectors_per_track:      dw 32                   ; Geometry varies by HDD image type
-bdb_heads:                  dw 64                   ; Geometry varies by HDD image type
-bdb_hidden_sectors:         dd 0
-bdb_large_sector_count:     dd 65536                ; 0x10000. Total sectors (32MB disk size)
-
-; extended boot record
-ebr_drive_number:           db 80h                  ; 0x80 = Hard Drive (C:), 0x00 = Floppy
-                            db 0                    ; reserved
-ebr_signature:              db 29h
-ebr_volume_id:              db 12h, 34h, 56h, 78h   ; serial number
-ebr_volume_label:           db 'MY       OS'        ; 11 bytes, padded with spaces
-ebr_system_id:              db 'FAT16   '           ; 8 bytes (Must match exactly)
+; CALCULATE: Ensure the BPB is exactly 59 bytes
+%if (step1_bpb_end - step1_bpb_start) > BPB_SIZE
+    %error "BPB is too large for FAT16 header (limit 59 bytes)"
+%endif
+times BPB_SIZE - (step1_bpb_end - step1_bpb_start) db 0
 
 start:
-    mov     [ebr_drive_number], dl
-
     mov     ax, 0
     mov     ds, ax
     mov     es, ax
 
     mov     ss, ax
     mov     sp, 0x7c00
+
+    mov     [ebr_drive_number], dl
 
     mov     si, msg_loading
 
@@ -144,7 +128,6 @@ start:
     mov     bx, STAGE2_LOAD_OFFSET
 
 .load_stage2_loop:
-    ; Read next cluster
     mov     ax, [stage2_cluster]
     sub     ax, 2
     xor     cx, cx
@@ -170,7 +153,7 @@ start:
     mov     [stage2_cluster], ax
 
     cmp     ax, 0xFFF8
-    jl      .load_stage2_loop
+    jb      .load_stage2_loop
 
     mov dl, [ebr_drive_number]  ; Pass boot drive to stage2
     

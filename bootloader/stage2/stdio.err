@@ -1,0 +1,4 @@
+stdio.c(136): Warning! W112: Parameter 1: Pointer truncated
+stdio.c(136): Note! I2003: source conversion type is 'char __far const *'
+stdio.c(136): Note! I2004: target conversion type is 'char const *'
+stdio.c(136): Note! I2002: 'puts' defined in: stdio.c(13)

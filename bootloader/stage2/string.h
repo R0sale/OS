@@ -6,4 +6,5 @@ typedef char bool;
 
 bool strcmp(const char* str1, const char* str2);
 void trim(char* str);
-int length(char* str);
+int getLength(char* str);
+const char* strchr(const char* str, char chr);
