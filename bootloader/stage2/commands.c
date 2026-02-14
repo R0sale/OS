@@ -13,14 +13,15 @@
 File far* open(DISK* disk, const char* path);
 
 void ls_command(DISK* disk);
-void readTxt(DISK* disk, const char* name);
+
+void read_file(DISK* disk, const char* path);
 
 CommandEntry commands[] = {
     {"help", CMD_HELP, "all terminal commands"},
     {"clear", CMD_CLEAR, "clear screen"},
     {"poweroff", CMD_SHUTDOWN, "shutdown the system"},
     {"ls", CMD_VIEW_DIRS, "list directories"},
-    {"read", CMD_READ_TEXT, "reads txt files"},
+    {"read", CMD_READ, "reads the file by path"},
     {NULL, CMD_UNKNOWN, NULL}
 };
 
@@ -68,8 +69,8 @@ void handleCommand(char* buffer, DISK* disk) {
         case CMD_VIEW_DIRS:
             ls_command(disk);
             break;
-        case CMD_READ_TEXT:
-            readTxt(disk, params[1]);
+        case CMD_READ:
+            read_file(disk, "");
             break;
         case CMD_UNKNOWN:
             printf("Ya ustal. Net takoi commandi blin.\n\r");
@@ -95,20 +96,24 @@ void ls_command(DISK* disk) {
     close(file);
 }
 
-void readTxt(DISK* disk, const char* name) {
-    char buffer[100];
+void read_file(DISK* disk, const char* path) {
     File far* file;
-    int i;
-    uint32_t readBuf;
+    char buffer[100];
+    uint32_t readFromBuffer;
+    uint16_t i;
+
     file = open(disk, "mydir/test.txt");
 
-    while (readBuf = read(disk, file, sizeof(buffer), buffer)) {
-        for (i = 0; i < readBuf; i++) {
-            if (buffer[i] == '\n') {
-                putc('\r');
+    if (readFromBuffer = read(disk, file, sizeof(buffer), buffer))
+    {
+        for (i = 0; i < readFromBuffer; i++)
+        {
+            if (buffer[i] == '\n')
+            {
+                printf("\r\n");
             }
             putc(buffer[i]);
         }
     }
-    printf("\n\r");
+    close(file);
 }
