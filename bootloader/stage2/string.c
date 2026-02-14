@@ -24,6 +24,34 @@ bool strcmp(const char* str1, const char* str2) {
     }
 }
 
+char* get_token(char** current_pos, char separator) {
+    char* end;
+    char* start = *current_pos;
+    
+    // 1. Skip leading separators (like multiple spaces)
+    while (*start && *start == separator) {
+        start++;
+    }
+
+    if (*start == '\0') return NULL; // End of string reached
+
+    // 2. Find the end of the word
+    end = start;
+    while (*end && *end != separator) {
+        end++;
+    }
+
+    // 3. If we found a separator, kill it with a null terminator
+    if (*end != '\0') {
+        *end = '\0';
+        *current_pos = end + 1; // Move the position to the next word
+    } else {
+        *current_pos = end; // No more tokens left
+    }
+
+    return start;
+}
+
 int getLength(char* str) {
     int counter = 0;
     while (*str) {

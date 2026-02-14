@@ -19,4 +19,4 @@ typedef struct {
 
 CommandType getCommandType(char* entry);
 
-void handleCommand(CommandType type, DISK* disk);
+void handleCommand(char* buffer, DISK* disk);

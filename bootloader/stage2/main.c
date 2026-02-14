@@ -7,7 +7,6 @@
 int _cdecl cstart(uint16_t bootDrive) {
     char buffer[50];
     DISK disk;
-    CommandType type;
     clear();
     diskInitialize(&disk, bootDrive);
     fatInitialize(&disk);
@@ -15,7 +14,6 @@ int _cdecl cstart(uint16_t bootDrive) {
     diskInitialize(&disk, bootDrive);
     while (true) {
         readPrompt(buffer);
-        type = getCommandType(buffer);
-        handleCommand(type, &disk);
+        handleCommand(buffer, &disk);
     }
 }

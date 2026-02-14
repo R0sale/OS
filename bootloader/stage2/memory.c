@@ -1,6 +1,7 @@
 #include "memory.h"
+#include "stdio.h"
 
-void* memcpy(void far* dst, const void far* src, uint16_t num) {
+void far* memcpy(void far* dst, const void far* src, uint16_t num) {
     const uint8_t far* u8BufferSrc = (const uint8_t far*)src;
     uint8_t far* u8BufferDst = (uint8_t far*)dst;
     uint16_t i;
@@ -12,8 +13,8 @@ void* memcpy(void far* dst, const void far* src, uint16_t num) {
     return u8BufferDst;
 }
 
-void* memset(void far* ptr, int value, uint16_t num) {
-    uint8_t far* u8Buffer = (uint8_t far*)ptr;
+void* memset(void* ptr, int value, uint16_t num) {
+    uint8_t* u8Buffer = (uint8_t*)ptr;
     uint16_t i;
 
     for (i = 0; i < num; i++) {
@@ -21,6 +22,14 @@ void* memset(void far* ptr, int value, uint16_t num) {
     }
 
     return u8Buffer;
+}
+
+void fillSpaces(char* ptr, uint16_t num) {
+    int i = 0;
+
+    for (i = 0; i < num; i++) {
+        *(ptr) = ' ';
+    }
 }
 
 int memcmp(const void far* ptr1, const void far* ptr2, uint16_t num) {

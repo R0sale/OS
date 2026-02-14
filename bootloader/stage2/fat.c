@@ -176,7 +176,7 @@ uint32_t read(DISK* disk, File far* file, uint32_t byteCount, void* bufferOut) {
 
                 if (!diskReadSectors(disk, fileData->CurrentCluster, 1, fileData->Buffer)) {
                     printf("Couldn't read next sector of root directory.");
-                    break;
+                    return 0;
                 }
             }
             else {
@@ -241,8 +241,10 @@ bool findFile(DISK* disk, File far* file, const char* name, DirectoryEntry* dirE
             fatName[8 + i] = toUpper(extension[i + 1]);
         }
     }
-    
-    while (readEntry(disk, file, &entry)) {
+
+    i = 0;
+
+    while (readEntry(disk, file, &entry) && i++ < 5) {
         if (memcmp(fatName, entry.FileName, 11) == 0) {
             *dirEntryOut = entry;
             return true;
@@ -273,7 +275,7 @@ File far* open(DISK* disk, const char* path) {
 
         if (delim != NULL) {
             memcpy(name, path, delim - path);
-            name[delim - path + 1] = '\0';
+            name[delim - path] = '\0';
             path = delim + 1;
         }
         else {
@@ -284,7 +286,6 @@ File far* open(DISK* disk, const char* path) {
         }
 
         if (findFile(disk, current, name, &entry)) {
-            printf("Found %s\r\n", name);
             close(current);
 
             if (!isLast && entry.Attributes & ATTRIBUTE_DIRECTORY == 0) {
