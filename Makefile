@@ -16,7 +16,7 @@ $(BUILD_DIR)/main.img: bootloader kernel
 	dd if=$(BUILD_DIR)/stage1.bin of=$(BUILD_DIR)/main.img conv=notrunc bs=1 seek=62 skip=62
 	mcopy -i $(BUILD_DIR)/main.img $(BUILD_DIR)/stage2.bin "::stage2.bin"
 	mcopy -i $(BUILD_DIR)/main.img $(BUILD_DIR)/kernel.bin "::kernel.bin"
-	mcopy -i $(BUILD_DIR)/main.img $(BUILD_DIR)/test.txt "::test.txt"
+	mcopy -i $(BUILD_DIR)/main.img test.txt "::test.txt"
 	mmd -i $(BUILD_DIR)/main.img "::mydir"
 	mcopy -i $(BUILD_DIR)/main.img test.txt "::mydir/test.txt"
 

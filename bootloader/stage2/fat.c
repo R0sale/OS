@@ -165,12 +165,11 @@ uint32_t read(DISK* disk, File far* file, uint32_t byteCount, void* bufferOut) {
     while (byteCount > 0) {
         leftInBuffer = SECTOR_SIZE - (fileData->Public.Position % SECTOR_SIZE);
         take = min(byteCount, leftInBuffer);
-
+        
         memcpy(u8OutBuffer, fileData->Buffer + (fileData->Public.Position % SECTOR_SIZE), (uint16_t)take);
         u8OutBuffer += take;
         fileData->Public.Position += take;
         byteCount -= take;
-
         if (leftInBuffer == take) {
             if (fileData->Public.Handle == ROOT_DIRECTORY_HANDLE) {
                 ++fileData->CurrentCluster;
@@ -222,7 +221,9 @@ bool findFile(DISK* disk, File far* file, const char* name, DirectoryEntry* dirE
     const char* extension;
     int i;
     // convert from name into fat name
-    memset(fatName, ' ', sizeof(fatName));
+
+    for (i = 0; i < sizeof(fatName); i++)
+        fatName[i] = ' ';
 
     fatName[11] = '\0';
 
@@ -231,7 +232,7 @@ bool findFile(DISK* disk, File far* file, const char* name, DirectoryEntry* dirE
         extension = name + 11;
     }
 
-    for (i = 0; i < 8 && name[i] && (name + i < extension); i++) {
+    for (i = 0; i < 8 && name[i] != '\0' && (name + i < extension); i++) {
         fatName[i] = toUpper(name[i]);
     }
 
@@ -266,7 +267,6 @@ File far* open(DISK* disk, const char* path) {
     current = &b_Data->RootDirectory.Public;
 
     while (*path) {
-        printf("In cycle part: %s\r\n", path);
         isLast = false;
 
         delim = strchr(path, '/');
@@ -302,6 +302,6 @@ File far* open(DISK* disk, const char* path) {
             return NULL;
         }
     }
-
+    
     return current;
 }
