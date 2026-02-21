@@ -4,6 +4,7 @@ section _TEXT class=CODE
 
 global __U4D
 __U4D:
+
     shl edx, 16         ; dx to upper half of edx
     mov dx, ax          ; edx - dividend
     mov eax, edx        ; eax - dividend
@@ -20,9 +21,7 @@ __U4D:
     mov edx, eax
     shr edx, 16
 
-    ret
-
-
+    ret 
 ;
 ; U4M
 ; Operation:      integer four byte multiply

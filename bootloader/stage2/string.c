@@ -28,25 +28,22 @@ char* get_token(char** current_pos, char separator) {
     char* end;
     char* start = *current_pos;
     
-    // 1. Skip leading separators (like multiple spaces)
     while (*start && *start == separator) {
         start++;
     }
 
-    if (*start == '\0') return NULL; // End of string reached
+    if (*start == '\0') return NULL; 
 
-    // 2. Find the end of the word
     end = start;
     while (*end && *end != separator) {
         end++;
     }
 
-    // 3. If we found a separator, kill it with a null terminator
     if (*end != '\0') {
         *end = '\0';
-        *current_pos = end + 1; // Move the position to the next word
+        *current_pos = end + 1;
     } else {
-        *current_pos = end; // No more tokens left
+        *current_pos = end;
     }
 
     return start;
@@ -77,10 +74,20 @@ void trim(char* str) {
     for (; i < length - start; i++) {
         str[i] = str[i + start];
     }
-
     str[length - start] = '\0';
 }
 
+void formatDisplayString(char* initialString, char* newString)
+{
+    int i = 0;
+
+    for (i = 0; i < 11 && initialString[i] != ' '; i++)
+    {
+        newString[i] = initialString[i];
+    }
+
+    newString[i] = '\0';
+}
 const char* strchr(const char* str, char chr) {
     if (str == NULL) {
         return NULL;
