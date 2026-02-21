@@ -9,14 +9,16 @@
 
 #define MAX_COMMAND_LENGTH 15
 #define MAX_PARAMS 3
+#define MAX_FILENAME_LENGTH 11
 
 File far* open(DISK* disk, const char* path);
 
-void ls_command(DISK* disk);
-
-void read_file(DISK* disk, const char* path);
+void ls_command(DISK* disk, DirectoryEntry* currentDirEntry);
+void read_file(DISK* disk, char* path, DirectoryEntry* currentDirEntry); 
 
 void change_directory(DISK* disk, const char* path, DirectoryEntry* currentDirEntry);
+void create_full_path(char* path, DirectoryEntry* dirEntry, char* outBuffer);
+
 
 CommandEntry commands[] = {
     {"help", CMD_HELP, "all terminal commands"},
@@ -70,10 +72,10 @@ void handleCommand(char* buffer, DISK* disk, DirectoryEntry* dirEntry) {
             shutdown();
             break;
         case CMD_VIEW_DIRS:
-            ls_command(disk);
+            ls_command(disk, dirEntry);
             break;
         case CMD_READ:
-            read_file(disk, params[1]);
+            read_file(disk, params[1], dirEntry);
             break;
         case CMD_CHANGE_DIR:
             change_directory(disk, params[1], dirEntry);
@@ -84,13 +86,15 @@ void handleCommand(char* buffer, DISK* disk, DirectoryEntry* dirEntry) {
     }
 }
 
-void ls_command(DISK* disk) {
+void ls_command(DISK* disk, DirectoryEntry* currentDirEntry) {
     File far* file;
     DirectoryEntry entry;
     int i = 0;
     int j;
+    char buffer[13];
 
-    file = open(disk, "/");
+    formatDisplayString(currentDirEntry->FileName, buffer);
+    file = open(disk, buffer);
 
     while (readEntry(disk, file, &entry) && i++ < 5) {
         printf(" ");
@@ -102,13 +106,15 @@ void ls_command(DISK* disk) {
     close(file);
 }
 
-void read_file(DISK* disk, const char* path) {
+void read_file(DISK* disk, char* path, DirectoryEntry* currentDirEntry) {
     File far* file;
     char buffer[100];
     uint32_t readFromBuffer;
     uint16_t i;
 
-    file = open(disk, path);
+    create_full_path(path, currentDirEntry, buffer);
+    printf("Path is %s\r\n", buffer);
+    file = open(disk, buffer);
 
     if (readFromBuffer = read(disk, file, sizeof(buffer), buffer))
     {
@@ -121,7 +127,6 @@ void read_file(DISK* disk, const char* path) {
             putc(buffer[i]);
         }
     }
-    close(file);
 }
 
 void change_directory(DISK* disk, const char* path, DirectoryEntry* currentDirEntry)
@@ -132,7 +137,15 @@ void change_directory(DISK* disk, const char* path, DirectoryEntry* currentDirEn
     char buffer[13];
 
     formatDisplayString(currentDirEntry->FileName, buffer);
+    printf("Changing directory to %s\r\n", buffer);
     file = open(disk, buffer);
+
+    if (file == NULL)
+    {
+        printf("Couldn't open the current directory.\r\n");
+        return;
+    }
+    printf("Looking for %s\r\n", path);
 
     if (!findFile(disk, file, path, dirEntry))
     {
@@ -140,6 +153,21 @@ void change_directory(DISK* disk, const char* path, DirectoryEntry* currentDirEn
     }
 
     *currentDirEntry = *dirEntry;
+}
 
-    close(file);
+void create_full_path(char* path, DirectoryEntry* dirEntry, char* outBuffer)
+{
+    int i;
+    int fileNameLength;
+    int pathLength = getLength(path);
+    formatDisplayString(dirEntry->FileName, outBuffer);
+    fileNameLength = getLength(outBuffer);
+    outBuffer[fileNameLength] = '/';
+    for (i = 0; i < pathLength; i++)
+    {
+        outBuffer[fileNameLength + i + 1] = path[i];
+    } 
+
+    outBuffer[fileNameLength + i + 1] = '\0';
+    printf("FullPath: %s\r\n", outBuffer);
 }

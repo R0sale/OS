@@ -110,7 +110,6 @@ bool fatInitialize(DISK* disk, DirectoryEntry* dirEntry) {
         dirEntry->FileName[i] = ' ';
     }
 
-    dirEntry->FileName[0] = '/';
     dirEntry->FileName[10] = '\0';
     dirEntry->FileSize = rootDirSize;
     dirEntry->LowFirstClusterNumber = b_Data->RootDirectory.FirstCluster;
@@ -298,7 +297,7 @@ File far* open(DISK* disk, const char* path) {
             close(current);
 
             if (!isLast && entry.Attributes & ATTRIBUTE_DIRECTORY == 0) {
-                printf("The %s is not a directory.", name);
+                printf("The %s is not a directory.\n\r", name);
                 return NULL;
             }
 
@@ -307,7 +306,7 @@ File far* open(DISK* disk, const char* path) {
         else {
             close(current);
 
-            printf("%s not found", name);
+            printf("%s not found\n\r", name);
 
             return NULL;
         }

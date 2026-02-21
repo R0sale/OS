@@ -18,7 +18,7 @@ $(BUILD_DIR)/main.img: bootloader kernel
 	mcopy -i $(BUILD_DIR)/main.img $(BUILD_DIR)/kernel.bin "::kernel.bin"
 	mcopy -i $(BUILD_DIR)/main.img test.txt "::test.txt"
 	mmd -i $(BUILD_DIR)/main.img "::mydir"
-	mcopy -i $(BUILD_DIR)/main.img test.txt "::mydir/test.txt"
+	mcopy -i $(BUILD_DIR)/main.img test2.txt "::mydir/test2.txt"
 
 bootloader: stage1 stage2
 
