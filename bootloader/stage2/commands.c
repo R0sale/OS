@@ -16,12 +16,15 @@ void ls_command(DISK* disk);
 
 void read_file(DISK* disk, const char* path);
 
+void change_directory(DISK* disk, const char* path, DirectoryEntry* currentDirEntry);
+
 CommandEntry commands[] = {
     {"help", CMD_HELP, "all terminal commands"},
     {"clear", CMD_CLEAR, "clear screen"},
     {"poweroff", CMD_SHUTDOWN, "shutdown the system"},
     {"ls", CMD_VIEW_DIRS, "list directories"},
     {"read", CMD_READ, "reads the file by path"},
+    {"cd", CMD_CHANGE_DIR, "changes the directory"},
     {NULL, CMD_UNKNOWN, NULL}
 };
 
@@ -38,7 +41,7 @@ CommandType getCommandType(char* input) {
     return CMD_UNKNOWN;
 }
 
-void handleCommand(char* buffer, DISK* disk) {
+void handleCommand(char* buffer, DISK* disk, DirectoryEntry* dirEntry) {
     char* params[MAX_PARAMS];
     int i = 0;
     int j = 0;
@@ -70,7 +73,10 @@ void handleCommand(char* buffer, DISK* disk) {
             ls_command(disk);
             break;
         case CMD_READ:
-            read_file(disk, "");
+            read_file(disk, params[1]);
+            break;
+        case CMD_CHANGE_DIR:
+            change_directory(disk, params[1], dirEntry);
             break;
         case CMD_UNKNOWN:
             printf("Ya ustal. Net takoi commandi blin.\n\r");
@@ -102,7 +108,7 @@ void read_file(DISK* disk, const char* path) {
     uint32_t readFromBuffer;
     uint16_t i;
 
-    file = open(disk, "mydir/test.txt");
+    file = open(disk, path);
 
     if (readFromBuffer = read(disk, file, sizeof(buffer), buffer))
     {
@@ -115,5 +121,25 @@ void read_file(DISK* disk, const char* path) {
             putc(buffer[i]);
         }
     }
+    close(file);
+}
+
+void change_directory(DISK* disk, const char* path, DirectoryEntry* currentDirEntry)
+{
+    File far* file;
+    DirectoryEntry* dirEntry;
+    int i;
+    char buffer[13];
+
+    formatDisplayString(currentDirEntry->FileName, buffer);
+    file = open(disk, buffer);
+
+    if (!findFile(disk, file, path, dirEntry))
+    {
+        printf("Couldn't find file\n\r");
+    }
+
+    *currentDirEntry = *dirEntry;
+
     close(file);
 }

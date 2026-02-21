@@ -1,5 +1,6 @@
 #pragma once
 #include "stdint.h"
+#include "fat.h"
 #include "disk.h"
 
 typedef enum {
@@ -8,7 +9,8 @@ typedef enum {
     CMD_CLEAR,
     CMD_SHUTDOWN,
     CMD_VIEW_DIRS,
-    CMD_READ
+    CMD_READ,
+    CMD_CHANGE_DIR
 } CommandType;
 
 typedef struct {
@@ -19,4 +21,4 @@ typedef struct {
 
 CommandType getCommandType(char* entry);
 
-void handleCommand(char* buffer, DISK* disk);
+void handleCommand(char* buffer, DISK* disk, DirectoryEntry* dirEntry);

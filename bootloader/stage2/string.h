@@ -9,3 +9,4 @@ void trim(char* str);
 int getLength(char* str);
 const char* strchr(const char* str, char chr);
 char* get_token(char** current_pos, char separator);
+void formatDisplayString(char* initialString, char* newString);

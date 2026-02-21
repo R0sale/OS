@@ -32,7 +32,6 @@ typedef struct {
     FileData OpenedFiles[MAX_FILES_HANDLE];
 } FAT_Data;
 
-static FAT_Data b_ActualData;
 static FAT_Data far* b_Data;
 static uint8_t far* b_Fat = NULL;
 static uint32_t b_DataSectionLba;
@@ -55,7 +54,7 @@ bool readFat(DISK* disk)
     return diskReadSectors(disk, b_Data->BS.bootSector.ReservedSectorCount, b_Data->BS.bootSector.SectorsPerFat, b_Fat);
 }
 
-bool fatInitialize(DISK* disk) {
+bool fatInitialize(DISK* disk, DirectoryEntry* dirEntry) {
     uint32_t fatSize;
     uint32_t rootDirLba;
     uint32_t rootDirSize;
@@ -106,6 +105,16 @@ bool fatInitialize(DISK* disk) {
         b_Data->OpenedFiles[i].Opened = false;
     }
 
+    for (i = 0; i < 11; i++)
+    {
+        dirEntry->FileName[i] = ' ';
+    }
+
+    dirEntry->FileName[0] = '/';
+    dirEntry->FileName[10] = '\0';
+    dirEntry->FileSize = rootDirSize;
+    dirEntry->LowFirstClusterNumber = b_Data->RootDirectory.FirstCluster;
+
     return true;
 }
 
@@ -125,7 +134,7 @@ File far* openEntry(DISK* disk, DirectoryEntry* entry) {
 
     if (handle < 0) {
         printf("Fat is out of file handles.\r\n");
-        return false;
+        return NULL;
     }
 
     fileData = &b_Data->OpenedFiles[handle];
