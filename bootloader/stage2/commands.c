@@ -113,7 +113,6 @@ void read_file(DISK* disk, char* path, DirectoryEntry* currentDirEntry) {
     uint16_t i;
 
     create_full_path(path, currentDirEntry, buffer);
-    printf("Path is %s\r\n", buffer);
     file = open(disk, buffer);
 
     if (readFromBuffer = read(disk, file, sizeof(buffer), buffer))
@@ -127,6 +126,7 @@ void read_file(DISK* disk, char* path, DirectoryEntry* currentDirEntry) {
             putc(buffer[i]);
         }
     }
+    close(file);
 }
 
 void change_directory(DISK* disk, const char* path, DirectoryEntry* currentDirEntry)
@@ -137,7 +137,6 @@ void change_directory(DISK* disk, const char* path, DirectoryEntry* currentDirEn
     char buffer[13];
 
     formatDisplayString(currentDirEntry->FileName, buffer);
-    printf("Changing directory to %s\r\n", buffer);
     file = open(disk, buffer);
 
     if (file == NULL)
@@ -145,11 +144,27 @@ void change_directory(DISK* disk, const char* path, DirectoryEntry* currentDirEn
         printf("Couldn't open the current directory.\r\n");
         return;
     }
-    printf("Looking for %s\r\n", path);
+
+    if (strcmp(path, ".."))
+    {
+        close(file);
+        file = open(disk, "/");
+        findFile(disk, file, "/", dirEntry);
+        *currentDirEntry = *dirEntry;
+        return;
+    }
 
     if (!findFile(disk, file, path, dirEntry))
     {
         printf("Couldn't find file\n\r");
+        close(file);
+        return;
+    }
+
+    if (!(dirEntry->Attributes & 0x10)) // 0x10 -- directory attribute
+    {
+        printf("The path is not a directory.");
+        return;
     }
 
     *currentDirEntry = *dirEntry;
@@ -169,5 +184,4 @@ void create_full_path(char* path, DirectoryEntry* dirEntry, char* outBuffer)
     } 
 
     outBuffer[fileNameLength + i + 1] = '\0';
-    printf("FullPath: %s\r\n", outBuffer);
 }
