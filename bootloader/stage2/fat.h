@@ -57,7 +57,7 @@ typedef struct {
 
 enum Attributes {
     ATTRIBUTE_READ_ONLY = 0x01,
-    ATTRIBUTE_HIDDEN    = 0x01,
+    ATTRIBUTE_HIDDEN    = 0x02,
     ATTRIBUTE_SYSTEM    = 0x04,
     ATTRIBUTE_VOLUME_ID = 0x08,
     ATTRIBUTE_DIRECTORY = 0x10,
