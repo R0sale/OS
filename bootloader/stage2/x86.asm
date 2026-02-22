@@ -100,13 +100,13 @@ _x86_Disk_Read:
 
     mov     ax, [bp + 8]
     mov     ch, al
+    shl     ah, 6
+    or      cl, ah
 
     mov     ax, [bp + 16]
     mov     es, ax
     mov     bx, [bp + 14]
 
-    shl     ah, 6
-    or      cl, ah
     mov     al, [bp + 12]
     mov     ah, 0x02
 
@@ -125,6 +125,53 @@ _x86_Disk_Read:
     mov     sp, bp
     pop     bp
     ret
+
+global _x86_Disk_Write
+_x86_Disk_Write:
+    push   bp
+    mov    bp, sp
+    push   dx
+    push   cx
+    push   es
+    push   bx
+
+    ; get drive number in dl, heads to dh
+    mov    dl, [bp + 4]
+    mov    dh, [bp + 10] 
+
+    ; get cylinders and sectors in the right spots
+    mov    ax, [bp + 6] 
+    xor    cx, cx 
+    or     cl, al
+
+    mov    ax, [bp + 8]
+    mov    ch, al
+    shl    ah, 6 
+    or     cl, ah
+
+    ; moving pointer to data into right spot
+    mov     ax, [bp + 16]
+    mov     es, ax
+    mov     bx, [bp + 14]
+
+
+    ; get count into al, executing write command
+    mov    al, [bp + 12] 
+    mov    ah, 0x03 
+    int    0x13
+    mov    ax, 1
+    jnc    .done
+
+.error:
+    xor    ax, ax
+.done:
+    pop     bx
+    pop     es
+    pop     cx
+    pop     dx
+    pop     bp
+    ret
+
 
 global _x86_Disk_Reset
 _x86_Disk_Reset:

@@ -14,3 +14,4 @@ bool _cdecl x86_Disk_Get_Drive_Params(uint8_t driveNumber,
                                       uint16_t* heads);
 bool _cdecl x86_Disk_Reset(uint8_t driveNumber);
 bool _cdecl x86_Disk_Read(uint8_t driveNumber, uint16_t sectors, uint16_t cylinders, uint16_t heads, uint8_t count, void far* buffer);
+bool _cdecl x86_Disk_Write(uint8_t driveNumber, uint16_t sectors, uint16_t cylinders, uint16_t heads, uint8_t count, void far* buffer);
