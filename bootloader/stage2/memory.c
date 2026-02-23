@@ -18,7 +18,7 @@ void* memset(void* ptr, int value, uint16_t num) {
     uint16_t i;
 
     for (i = 0; i < num; i++) {
-        *(u8Buffer) = (uint8_t)value;
+        u8Buffer[i] = (uint8_t)value;
     }
 
     return u8Buffer;
