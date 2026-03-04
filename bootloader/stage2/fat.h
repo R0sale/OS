@@ -70,3 +70,4 @@ File far* open(DISK* disk, const char* path);
 uint32_t read(DISK* disk, File far* file, uint32_t count, void* outData);
 bool readEntry(DISK* disk, File far* file, DirectoryEntry* entry);
 void close(File far* file);
+bool makeDirectory(DISK* disk, const char* parentName, const char* dirName);

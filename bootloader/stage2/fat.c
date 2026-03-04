@@ -412,6 +412,7 @@ void close(File far* file) {
     }
     else {
         b_Data->OpenedFiles[file->Handle].Opened = false;
+
     }
 }
 
@@ -420,6 +421,7 @@ bool findFile(DISK* disk, File far* file, const char* name, DirectoryEntry* dirE
     DirectoryEntry entry;
     const char* extension;
     int i;
+    file->Position = 0; 
     // convert from name into fat name
 
     for (i = 0; i < sizeof(fatName); i++)
@@ -427,15 +429,11 @@ bool findFile(DISK* disk, File far* file, const char* name, DirectoryEntry* dirE
 
     fatName[11] = '\0';
 
-    extension = strchr(name, '.');
-    if (extension == NULL) {
-        extension = name + 11;
-    }
-
-    for (i = 0; i < 8 && name[i] != '\0' && (name + i < extension); i++) {
+    for (i = 0; i < 8 && name[i] != '\0' && name[i] != '.'; i++) {
         fatName[i] = toUpper(name[i]);
     }
 
+    extension = strchr(name, '.');
     if (extension != NULL) {
         for (i = 0; i < 3 && extension[i + 1]; i++) {
             fatName[8 + i] = toUpper(extension[i + 1]);
@@ -443,7 +441,7 @@ bool findFile(DISK* disk, File far* file, const char* name, DirectoryEntry* dirE
     }
 
     i = 0;
-
+    
     while (readEntry(disk, file, &entry) && i++ < 5) {
         if (memcmp(fatName, entry.FileName, 11) == 0) {
             *dirEntryOut = entry;
@@ -467,6 +465,7 @@ File far* open(DISK* disk, const char* path) {
     }
         
     current = &b_Data->RootDirectory.Public;
+    printf("Path: %s\n\r", path);
 
     while (*path) {
         isLast = false;
@@ -481,6 +480,8 @@ File far* open(DISK* disk, const char* path) {
         else {
             length = getLength(path);
             memcpy(name, path, length);
+            name[length] = '\0';
+            printf("Name is: %s\n\r", name);
             path += length;
             isLast = true;
         }

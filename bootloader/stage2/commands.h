@@ -10,7 +10,8 @@ typedef enum {
     CMD_SHUTDOWN,
     CMD_VIEW_DIRS,
     CMD_READ,
-    CMD_CHANGE_DIR
+    CMD_CHANGE_DIR,
+    CMD_MAKE_DIR
 } CommandType;
 
 typedef struct {

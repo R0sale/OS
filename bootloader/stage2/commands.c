@@ -18,6 +18,7 @@ void read_file(DISK* disk, char* path, DirectoryEntry* currentDirEntry);
 
 void change_directory(DISK* disk, const char* path, DirectoryEntry* currentDirEntry);
 void create_full_path(char* path, DirectoryEntry* dirEntry, char* outBuffer);
+void make_directory(DISK* disk, const char* dirName, DirectoryEntry* currentDirEntry);
 
 
 CommandEntry commands[] = {
@@ -27,6 +28,7 @@ CommandEntry commands[] = {
     {"ls", CMD_VIEW_DIRS, "list directories"},
     {"read", CMD_READ, "reads the file by path"},
     {"cd", CMD_CHANGE_DIR, "changes the directory"},
+    {"mkdir", CMD_MAKE_DIR, "creates the directory"},
     {NULL, CMD_UNKNOWN, NULL}
 };
 
@@ -80,6 +82,9 @@ void handleCommand(char* buffer, DISK* disk, DirectoryEntry* dirEntry) {
         case CMD_CHANGE_DIR:
             change_directory(disk, params[1], dirEntry);
             break;
+        case CMD_MAKE_DIR:
+            make_directory(disk, params[1], dirEntry);
+            break;
         case CMD_UNKNOWN:
             printf("Ya ustal. Net takoi commandi blin.\n\r");
             break;
@@ -95,6 +100,11 @@ void ls_command(DISK* disk, DirectoryEntry* currentDirEntry) {
 
     formatDisplayString(currentDirEntry->FileName, buffer);
     file = open(disk, buffer);
+    if (file == NULL)
+    {
+        printf("File %s not found\n\r", buffer);
+        return;
+    }
 
     while (readEntry(disk, file, &entry) && i++ < 5) {
         printf(" ");
@@ -151,6 +161,7 @@ void change_directory(DISK* disk, const char* path, DirectoryEntry* currentDirEn
         file = open(disk, "/");
         findFile(disk, file, "/", dirEntry);
         *currentDirEntry = *dirEntry;
+        close(file);
         return;
     }
 
@@ -160,14 +171,16 @@ void change_directory(DISK* disk, const char* path, DirectoryEntry* currentDirEn
         close(file);
         return;
     }
-
+    
     if (!(dirEntry->Attributes & 0x10)) // 0x10 -- directory attribute
     {
         printf("The path is not a directory.");
+        close(file);
         return;
     }
 
     *currentDirEntry = *dirEntry;
+    close(file);
 }
 
 void create_full_path(char* path, DirectoryEntry* dirEntry, char* outBuffer)
@@ -184,4 +197,18 @@ void create_full_path(char* path, DirectoryEntry* dirEntry, char* outBuffer)
     } 
 
     outBuffer[fileNameLength + i + 1] = '\0';
+}
+
+void make_directory(DISK* disk, const char* dirName, DirectoryEntry* currentDirEntry)
+{
+    char buffer[13];
+    formatDisplayString(currentDirEntry->FileName, buffer);
+    if (makeDirectory(disk, buffer, dirName))
+    {
+        printf("Directory was successfully writen.\n\r");
+    }
+    else
+    {
+        printf("Couldn't write directory\n\r");
+    }
 }
