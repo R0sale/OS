@@ -8,9 +8,14 @@
 #include "ctype.h"
 
 #define SECTOR_SIZE 512
+#define CLUSTER_SIZE 2048
 #define MAX_PATH_SIZE 256
 #define MAX_FILES_HANDLE 10
 #define ROOT_DIRECTORY_HANDLE -1
+
+bool formatDirectory(DISK* disk, uint32_t newCluster, uint32_t parentCluster);
+bool writeEntryToDirectory(DISK* disk, uint32_t directoryCluster, DirectoryEntry* newDirectoryEntry);
+bool getEntryByPath(DISK* disk, const char* path, DirectoryEntry* dirEntryOut);
 
 typedef struct {
     uint8_t Buffer[SECTOR_SIZE];
@@ -49,12 +54,49 @@ bool readSectors(DISK* disk, uint32_t lba, uint32_t count, void* bufferOut)
     return ok;
 }
 
+bool writeSectors(DISK* disk, uint32_t lba, uint8_t count, void* buffer) {
+    bool ok = true;
+    ok = ok && diskWriteSectors(disk, lba, count, buffer);
+    return ok;
+}
+
+uint32_t findFreeCluster(DISK* disk) {
+    int i;
+    uint32_t totalSectors = b_Data->BS.bootSector.TotalSectors32;
+    uint32_t sectorsPerCluster = b_Data->BS.bootSector.SectorsPerCluster;
+    uint32_t totalClusters;
+    uint8_t shift = 0;
+    uint16_t far* fat16 = (uint16_t far*)b_Fat;
+
+    uint32_t spc = sectorsPerCluster;
+
+    while (spc > 1)
+    {
+        spc = spc >> 1;
+        shift++;
+    }
+
+    totalClusters = totalSectors >> shift;
+
+    printf("Total clusters: %d\n\r", totalClusters);
+
+    for (i = 2; i < totalClusters; i++) {
+        if (fat16[i] == 0x0000)
+        {
+            printf("Free cluster: %d", i);
+            return i;
+        }
+    }
+
+    return 0;
+}
+
 bool readFat(DISK* disk)
 {
     return diskReadSectors(disk, b_Data->BS.bootSector.ReservedSectorCount, b_Data->BS.bootSector.SectorsPerFat, b_Fat);
 }
 
-bool fatInitialize(DISK* disk, DirectoryEntry* dirEntry) {
+bool fatInitialize(DISK* disk) {
     uint32_t fatSize;
     uint32_t rootDirLba;
     uint32_t rootDirSize;
@@ -97,6 +139,9 @@ bool fatInitialize(DISK* disk, DirectoryEntry* dirEntry) {
         printf("FAT: read root directory failed\r\n");
         return false;
     }
+    printf("OEM Name: %s\r\n", b_Data->BS.bootSector.OemName);
+    printf("Bytes Per Sector: %d\r\n", b_Data->BS.bootSector.BytesPerSector);
+    printf("Signature: %x\r\n", b_Data->BS.bootSector.Signature);
 
     rootDirSectors = (rootDirSize + b_Data->BS.bootSector.BytesPerSector - 1) / b_Data->BS.bootSector.BytesPerSector;
     b_DataSectionLba = rootDirLba + rootDirSectors;
@@ -104,15 +149,6 @@ bool fatInitialize(DISK* disk, DirectoryEntry* dirEntry) {
     for (i = 0; i < MAX_FILES_HANDLE; i++) {
         b_Data->OpenedFiles[i].Opened = false;
     }
-
-    for (i = 0; i < 11; i++)
-    {
-        dirEntry->FileName[i] = ' ';
-    }
-
-    dirEntry->FileName[10] = '\0';
-    dirEntry->FileSize = rootDirSize;
-    dirEntry->LowFirstClusterNumber = b_Data->RootDirectory.FirstCluster;
 
     return true;
 }
@@ -209,6 +245,184 @@ uint32_t read(DISK* disk, File far* file, uint32_t byteCount, void* bufferOut) {
     return u8OutBuffer - (uint8_t*)bufferOut;
 }
 
+bool makeDirectory(DISK* disk, const char* parentPath, const char* dirName)
+{
+    File far* parentFile = open(disk, parentPath);
+    DirectoryEntry parentDirEntry;
+    DirectoryEntry newDirectory;
+    int i;
+    int dirNameLength = getLength(dirName); 
+    uint32_t newCluster;
+    uint16_t far* fat16 = (uint16_t far*)b_Fat;
+
+    if (dirNameLength > 11)
+    {
+        printf("Directory name can't be more than 11 symbols length\n\r");
+        if (parentFile)
+            close(parentFile);
+        return false;
+    }
+
+    memset(&newDirectory, 0, sizeof(DirectoryEntry));
+
+    printf("Parent path: %s\n\r", parentPath);
+
+
+    if (!getEntryByPath(disk, parentPath, &parentDirEntry))
+    {
+        printf("Couldn't open entry\n\r");
+        return false;
+    }
+    printf("ParentEntry is %s\r\n", parentDirEntry.FileName);
+
+    close(parentFile);    
+
+    newCluster = findFreeCluster(disk);
+
+    if (newCluster == 0)
+    {
+        printf("No clusters available\n\r");
+        return false;
+    }
+
+    newDirectory.LowFirstClusterNumber = newCluster;
+    fat16[newCluster] = 0xFFF8;
+    
+    // creating FAT name
+    for (i = 0; i < 11; i++)
+    {
+        newDirectory.FileName[i] = ' ';
+    }
+
+    for (i = 0; i < dirNameLength; i++)
+    {
+        newDirectory.FileName[i] = toUpper(dirName[i]);
+    }
+
+    newDirectory.Attributes = ATTRIBUTE_DIRECTORY;
+    newDirectory.FileSize = 0;
+
+    if (!writeEntryToDirectory(disk, parentDirEntry.LowFirstClusterNumber, &newDirectory))
+    {
+        return false;
+    }
+
+    formatDirectory(disk, newCluster, parentDirEntry.LowFirstClusterNumber);
+
+    for (i = 0; i < b_Data->BS.bootSector.SectorsPerFat; i++) 
+    {
+        uint32_t fat1Lba = b_Data->BS.bootSector.ReservedSectorCount + i;
+        uint32_t fat2Lba = b_Data->BS.bootSector.ReservedSectorCount + b_Data->BS.bootSector.SectorsPerFat + i;
+        
+        uint8_t far* sectorPtr = b_Fat + (i * SECTOR_SIZE);
+        
+        if (!diskWriteSectors(disk, fat1Lba, 1, sectorPtr)) return false;
+        if (!diskWriteSectors(disk, fat2Lba, 1, sectorPtr)) return false;
+    }
+
+    return true;
+}
+
+bool formatDirectory(DISK* disk, uint32_t newCluster, uint32_t parentCluster) {
+    uint8_t clusterBuffer[CLUSTER_SIZE];
+    DirectoryEntry* dot = (DirectoryEntry*) clusterBuffer;
+    DirectoryEntry* dotdot = (DirectoryEntry*)(clusterBuffer + sizeof(DirectoryEntry));
+    uint32_t lba; 
+    memset(clusterBuffer, 0, CLUSTER_SIZE);
+
+    memcpy(dot->FileName, ".           ", 11);
+    dot->FileSize = 0;
+    dot->Attributes = ATTRIBUTE_DIRECTORY;
+    dot->LowFirstClusterNumber = newCluster;
+
+    memcpy(dotdot->FileName, "..         ", 11);
+    dotdot->FileSize = 0;
+    dotdot->Attributes = ATTRIBUTE_DIRECTORY;
+    dotdot->LowFirstClusterNumber = parentCluster;
+
+    lba = clusterToLba(newCluster);
+    diskWriteSectors(disk, lba, b_Data->BS.bootSector.SectorsPerCluster, clusterBuffer);
+
+    return true;
+}
+
+bool writeEntryToDirectory(DISK* disk, uint32_t directoryCluster, DirectoryEntry* newDirectoryEntry)
+{
+    uint32_t lba;
+    int dirEntries = CLUSTER_SIZE / sizeof(DirectoryEntry);
+    int i;
+    uint8_t clusterBuffer[CLUSTER_SIZE];
+    DirectoryEntry* entry; 
+    uint32_t nextCluster;
+    uint32_t newCluster; 
+    uint32_t newLba; 
+
+    uint16_t far* fat16 = (uint16_t far*)b_Fat;
+    while (true)
+    {
+        lba = clusterToLba(directoryCluster);
+        if (!diskReadSectors(disk, lba, b_Data->BS.bootSector.SectorsPerCluster, clusterBuffer))
+        {
+            printf("Can't read parent cluster.\n\r");
+            return false;
+        }
+
+        entry = (DirectoryEntry*)clusterBuffer;
+
+        for (i = 0; i < dirEntries; i++)
+        {
+            if (entry[i].FileName[0] == 0x00 || (uint8_t)entry[i].FileName[0] == 0xE5)
+            {
+                memcpy(&entry[i], newDirectoryEntry, sizeof(DirectoryEntry));
+
+                if (diskWriteSectors(disk, lba, b_Data->BS.bootSector.SectorsPerCluster, clusterBuffer))
+                {
+                    return true;
+                }
+                else 
+                {
+                    return false;
+                }
+            }
+        }
+
+        nextCluster = fat16[directoryCluster];
+
+        if (nextCluster >= 0xFFF8)
+        {
+            newCluster = findFreeCluster(disk);
+
+            if (newCluster == 0)
+            {
+                printf("Couldn't allocate new cluster.\n\r");
+                return false;
+            }
+
+            fat16[directoryCluster] = newCluster;
+            fat16[newCluster] = 0xFFF8;
+
+            memset(clusterBuffer, 0, CLUSTER_SIZE);
+
+            entry = (DirectoryEntry*)clusterBuffer;
+            memcpy(&entry[0], newDirectoryEntry, sizeof(DirectoryEntry));
+
+            newLba = clusterToLba(newCluster);
+            
+            if (diskWriteSectors(disk, newLba, b_Data->BS.bootSector.SectorsPerCluster, clusterBuffer))
+            {
+                return true;
+            }
+            else 
+            {
+                return false;
+            }
+        }
+        directoryCluster = nextCluster;
+    }
+
+    return false;
+}
+
 bool readEntry(DISK* disk, File far* file, DirectoryEntry* entry) {
     return read(disk, file, sizeof(DirectoryEntry), entry) == sizeof(DirectoryEntry);
 }
@@ -220,6 +434,7 @@ void close(File far* file) {
     }
     else {
         b_Data->OpenedFiles[file->Handle].Opened = false;
+
     }
 }
 
@@ -228,6 +443,7 @@ bool findFile(DISK* disk, File far* file, const char* name, DirectoryEntry* dirE
     DirectoryEntry entry;
     const char* extension;
     int i;
+    file->Position = 0; 
     // convert from name into fat name
 
     for (i = 0; i < sizeof(fatName); i++)
@@ -235,15 +451,11 @@ bool findFile(DISK* disk, File far* file, const char* name, DirectoryEntry* dirE
 
     fatName[11] = '\0';
 
-    extension = strchr(name, '.');
-    if (extension == NULL) {
-        extension = name + 11;
-    }
-
-    for (i = 0; i < 8 && name[i] != '\0' && (name + i < extension); i++) {
+    for (i = 0; i < 8 && name[i] != '\0' && name[i] != '.'; i++) {
         fatName[i] = toUpper(name[i]);
     }
 
+    extension = strchr(name, '.');
     if (extension != NULL) {
         for (i = 0; i < 3 && extension[i + 1]; i++) {
             fatName[8 + i] = toUpper(extension[i + 1]);
@@ -251,7 +463,7 @@ bool findFile(DISK* disk, File far* file, const char* name, DirectoryEntry* dirE
     }
 
     i = 0;
-
+    
     while (readEntry(disk, file, &entry) && i++ < 5) {
         if (memcmp(fatName, entry.FileName, 11) == 0) {
             *dirEntryOut = entry;
@@ -289,6 +501,7 @@ File far* open(DISK* disk, const char* path) {
         else {
             length = getLength(path);
             memcpy(name, path, length);
+            name[length] = '\0';
             path += length;
             isLast = true;
         }
@@ -313,4 +526,60 @@ File far* open(DISK* disk, const char* path) {
     }
     
     return current;
+}
+
+bool getEntryByPath(DISK* disk, const char* path, DirectoryEntry* dirEntryOut)
+{
+    int length = getLength(path);
+    int i;
+    int index = 0;
+    char parentPath[100];
+    char name[13];
+    File far* file;
+    DirectoryEntry* dirEntry;
+    if (*path == '\0')
+    {
+        printf("Can't create directories in root directory\n\r");
+        return false;
+    }
+    i = length - 1;
+
+    while (path[i] != '/' && i >= 0)
+    {
+        i--;
+    }
+
+    index = i;
+
+    if (index == -1) 
+    {
+        parentPath[0] = '\0'; 
+        
+        memcpy(name, path, length);
+        name[length] = '\0';
+    }
+    else 
+    {
+        memcpy(parentPath, path, index);
+        parentPath[index] = '\0';
+
+        memcpy(name, path + index + 1, length - index - 1);
+        name[length - index - 1] = '\0';
+    } 
+
+    file = open(disk, parentPath);
+    if (file == NULL)
+    {
+        printf("Parent dir doesnt exist\n\r");
+        return false;
+    }
+    if (!findFile(disk, file, name, dirEntryOut))
+    {
+        printf("There is no such an entry\n\r");
+        close(file);
+        return false;
+    }
+
+    close(file);
+    return true;
 }

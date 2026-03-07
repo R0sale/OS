@@ -13,11 +13,12 @@
 
 File far* open(DISK* disk, const char* path);
 
-void ls_command(DISK* disk, DirectoryEntry* currentDirEntry);
-void read_file(DISK* disk, char* path, DirectoryEntry* currentDirEntry); 
+void ls_command(DISK* disk, char* cwd);
+void read_file(DISK* disk, char* path, char* cwd); 
 
-void change_directory(DISK* disk, const char* path, DirectoryEntry* currentDirEntry);
-void create_full_path(char* path, DirectoryEntry* dirEntry, char* outBuffer);
+void change_directory(DISK* disk, const char* path, char* cwd);
+void create_full_path(char* path, char* cwd, char* outBuffer);
+void make_directory(DISK* disk, const char* dirName, char* cwd);
 
 
 CommandEntry commands[] = {
@@ -27,6 +28,7 @@ CommandEntry commands[] = {
     {"ls", CMD_VIEW_DIRS, "list directories"},
     {"read", CMD_READ, "reads the file by path"},
     {"cd", CMD_CHANGE_DIR, "changes the directory"},
+    {"mkdir", CMD_MAKE_DIR, "creates the directory"},
     {NULL, CMD_UNKNOWN, NULL}
 };
 
@@ -43,7 +45,7 @@ CommandType getCommandType(char* input) {
     return CMD_UNKNOWN;
 }
 
-void handleCommand(char* buffer, DISK* disk, DirectoryEntry* dirEntry) {
+void handleCommand(char* buffer, DISK* disk, char* cwd) {
     char* params[MAX_PARAMS];
     int i = 0;
     int j = 0;
@@ -72,13 +74,16 @@ void handleCommand(char* buffer, DISK* disk, DirectoryEntry* dirEntry) {
             shutdown();
             break;
         case CMD_VIEW_DIRS:
-            ls_command(disk, dirEntry);
+            ls_command(disk, cwd);
             break;
         case CMD_READ:
-            read_file(disk, params[1], dirEntry);
+            read_file(disk, params[1], cwd);
             break;
         case CMD_CHANGE_DIR:
-            change_directory(disk, params[1], dirEntry);
+            change_directory(disk, params[1], cwd);
+            break;
+        case CMD_MAKE_DIR:
+            make_directory(disk, params[1], cwd);
             break;
         case CMD_UNKNOWN:
             printf("Ya ustal. Net takoi commandi blin.\n\r");
@@ -86,15 +91,18 @@ void handleCommand(char* buffer, DISK* disk, DirectoryEntry* dirEntry) {
     }
 }
 
-void ls_command(DISK* disk, DirectoryEntry* currentDirEntry) {
+void ls_command(DISK* disk, char* cwd) {
     File far* file;
     DirectoryEntry entry;
     int i = 0;
     int j;
-    char buffer[13];
 
-    formatDisplayString(currentDirEntry->FileName, buffer);
-    file = open(disk, buffer);
+    file = open(disk, cwd);
+    if (file == NULL)
+    {
+        printf("File %s not found\n\r", cwd);
+        return;
+    }
 
     while (readEntry(disk, file, &entry) && i++ < 5) {
         printf(" ");
@@ -106,13 +114,13 @@ void ls_command(DISK* disk, DirectoryEntry* currentDirEntry) {
     close(file);
 }
 
-void read_file(DISK* disk, char* path, DirectoryEntry* currentDirEntry) {
+void read_file(DISK* disk, char* path, char* cwd) {
     File far* file;
     char buffer[100];
     uint32_t readFromBuffer;
     uint16_t i;
 
-    create_full_path(path, currentDirEntry, buffer);
+    create_full_path(path, cwd, buffer);
     file = open(disk, buffer);
 
     if (readFromBuffer = read(disk, file, sizeof(buffer), buffer))
@@ -129,15 +137,13 @@ void read_file(DISK* disk, char* path, DirectoryEntry* currentDirEntry) {
     close(file);
 }
 
-void change_directory(DISK* disk, const char* path, DirectoryEntry* currentDirEntry)
+void change_directory(DISK* disk, const char* path, char* cwd)
 {
     File far* file;
-    DirectoryEntry* dirEntry;
+    DirectoryEntry dirEntry;
     int i;
-    char buffer[13];
 
-    formatDisplayString(currentDirEntry->FileName, buffer);
-    file = open(disk, buffer);
+    file = open(disk, cwd);
 
     if (file == NULL)
     {
@@ -149,39 +155,78 @@ void change_directory(DISK* disk, const char* path, DirectoryEntry* currentDirEn
     {
         close(file);
         file = open(disk, "/");
-        findFile(disk, file, "/", dirEntry);
-        *currentDirEntry = *dirEntry;
+        findFile(disk, file, "/", &dirEntry);
+        cwd[0] = '\0';
+        close(file);
         return;
     }
 
-    if (!findFile(disk, file, path, dirEntry))
+    if (!findFile(disk, file, path, &dirEntry))
     {
         printf("Couldn't find file\n\r");
         close(file);
         return;
     }
 
-    if (!(dirEntry->Attributes & 0x10)) // 0x10 -- directory attribute
+    if (!(dirEntry.Attributes & 0x10)) // 0x10 -- directory attribute
     {
         printf("The path is not a directory.");
+        close(file);
         return;
     }
 
-    *currentDirEntry = *dirEntry;
+    update_cwd(cwd, &dirEntry);
+    close(file);
 }
 
-void create_full_path(char* path, DirectoryEntry* dirEntry, char* outBuffer)
+void create_full_path(char* path, char* cwd, char* outBuffer)
 {
-    int i;
-    int fileNameLength;
-    int pathLength = getLength(path);
-    formatDisplayString(dirEntry->FileName, outBuffer);
-    fileNameLength = getLength(outBuffer);
-    outBuffer[fileNameLength] = '/';
-    for (i = 0; i < pathLength; i++)
-    {
-        outBuffer[fileNameLength + i + 1] = path[i];
-    } 
+    int cwdLen = getLength(cwd);
+    int pathLen = getLength(path);
+    int outPos = cwdLen;
 
-    outBuffer[fileNameLength + i + 1] = '\0';
+    memcpy(outBuffer, cwd, cwdLen);
+
+    if (cwdLen > 0 && outBuffer[cwdLen - 1] != '/')
+    {
+        outBuffer[outPos] = '/';
+        outPos++;
+    }
+
+    memcpy(outBuffer + outPos, path, pathLen);
+    outPos += pathLen;
+
+    outBuffer[outPos] = '\0';
+}
+
+void make_directory(DISK* disk, const char* dirName, char* cwd)
+{
+    if (makeDirectory(disk, cwd, dirName))
+    {
+        printf("Directory was successfully writen.\n\r");
+    }
+    else
+    {
+        printf("Couldn't write directory\n\r");
+    }
+}
+
+void update_cwd(char* cwd, DirectoryEntry* dirEntry)
+{
+    char buffer[13];
+    int cwdLen = getLength(cwd);
+    int bufferLen;
+    formatDisplayString(dirEntry->FileName, buffer);
+
+    bufferLen = getLength(buffer);
+
+    if (cwdLen > 0 && cwd[cwdLen - 1] != '/')
+    {
+        cwd[cwdLen] = '/';
+        cwd[cwdLen + 1] = '\0';
+        cwdLen++;
+    }
+
+    memcpy(cwd + cwdLen, buffer, bufferLen);
+    cwd[cwdLen + bufferLen] = '\0';
 }

@@ -65,8 +65,9 @@ enum Attributes {
     ATTRIBUTE_LFN       = ATTRIBUTE_READ_ONLY | ATTRIBUTE_HIDDEN | ATTRIBUTE_SYSTEM | ATTRIBUTE_VOLUME_ID
 };
 
-bool fatInitialize(DISK* disk, DirectoryEntry* ditEntry);
+bool fatInitialize(DISK* disk);
 File far* open(DISK* disk, const char* path);
 uint32_t read(DISK* disk, File far* file, uint32_t count, void* outData);
 bool readEntry(DISK* disk, File far* file, DirectoryEntry* entry);
 void close(File far* file);
+bool makeDirectory(DISK* disk, const char* parentName, const char* dirName);
