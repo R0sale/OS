@@ -22,4 +22,4 @@ typedef struct {
 
 CommandType getCommandType(char* entry);
 
-void handleCommand(char* buffer, DISK* disk, DirectoryEntry* dirEntry);
+void handleCommand(char* buffer, DISK* disk, char* cwd);

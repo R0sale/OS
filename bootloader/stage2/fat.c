@@ -66,6 +66,7 @@ uint32_t findFreeCluster(DISK* disk) {
     uint32_t sectorsPerCluster = b_Data->BS.bootSector.SectorsPerCluster;
     uint32_t totalClusters;
     uint8_t shift = 0;
+    uint16_t far* fat16 = (uint16_t far*)b_Fat;
 
     uint32_t spc = sectorsPerCluster;
 
@@ -77,8 +78,10 @@ uint32_t findFreeCluster(DISK* disk) {
 
     totalClusters = totalSectors >> shift;
 
+    printf("Total clusters: %d\n\r", totalClusters);
+
     for (i = 2; i < totalClusters; i++) {
-        if (b_Fat[i] == 0x0000)
+        if (fat16[i] == 0x0000)
         {
             printf("Free cluster: %d", i);
             return i;
@@ -93,7 +96,7 @@ bool readFat(DISK* disk)
     return diskReadSectors(disk, b_Data->BS.bootSector.ReservedSectorCount, b_Data->BS.bootSector.SectorsPerFat, b_Fat);
 }
 
-bool fatInitialize(DISK* disk, DirectoryEntry* dirEntry) {
+bool fatInitialize(DISK* disk) {
     uint32_t fatSize;
     uint32_t rootDirLba;
     uint32_t rootDirSize;
@@ -146,15 +149,6 @@ bool fatInitialize(DISK* disk, DirectoryEntry* dirEntry) {
     for (i = 0; i < MAX_FILES_HANDLE; i++) {
         b_Data->OpenedFiles[i].Opened = false;
     }
-
-    for (i = 0; i < 11; i++)
-    {
-        dirEntry->FileName[i] = ' ';
-    }
-
-    dirEntry->FileName[10] = '\0';
-    dirEntry->FileSize = rootDirSize;
-    dirEntry->LowFirstClusterNumber = b_Data->RootDirectory.FirstCluster;
 
     return true;
 }
@@ -269,6 +263,8 @@ bool makeDirectory(DISK* disk, const char* parentPath, const char* dirName)
         return false;
     }
 
+    memset(&newDirectory, 0, sizeof(DirectoryEntry));
+
     printf("Parent path: %s\n\r", parentPath);
 
 
@@ -300,7 +296,7 @@ bool makeDirectory(DISK* disk, const char* parentPath, const char* dirName)
 
     for (i = 0; i < dirNameLength; i++)
     {
-        newDirectory.FileName[i] = dirName[i];
+        newDirectory.FileName[i] = toUpper(dirName[i]);
     }
 
     newDirectory.Attributes = ATTRIBUTE_DIRECTORY;
@@ -313,14 +309,15 @@ bool makeDirectory(DISK* disk, const char* parentPath, const char* dirName)
 
     formatDirectory(disk, newCluster, parentDirEntry.LowFirstClusterNumber);
 
-    if (!diskWriteSectors(disk, b_Data->BS.bootSector.ReservedSectorCount, b_Data->BS.bootSector.SectorsPerFat, b_Fat))
+    for (i = 0; i < b_Data->BS.bootSector.SectorsPerFat; i++) 
     {
-        return false;
-    }
-    
-    if (!diskWriteSectors(disk, b_Data->BS.bootSector.ReservedSectorCount + b_Data->BS.bootSector.SectorsPerFat, b_Data->BS.bootSector.SectorsPerFat, b_Fat))
-    {
-        return false;
+        uint32_t fat1Lba = b_Data->BS.bootSector.ReservedSectorCount + i;
+        uint32_t fat2Lba = b_Data->BS.bootSector.ReservedSectorCount + b_Data->BS.bootSector.SectorsPerFat + i;
+        
+        uint8_t far* sectorPtr = b_Fat + (i * SECTOR_SIZE);
+        
+        if (!diskWriteSectors(disk, fat1Lba, 1, sectorPtr)) return false;
+        if (!diskWriteSectors(disk, fat2Lba, 1, sectorPtr)) return false;
     }
 
     return true;
