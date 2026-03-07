@@ -13,7 +13,7 @@ bdb_sectors_per_cluster:    db 4                    ; 4 sectors (2KB) per cluste
 bdb_reserved_sectors:       dw 1
 bdb_fat_count:              db 2
 bdb_dir_entries_count:      dw 512                  ; 0x0200. Standard for FAT16 Root Directory
-bdb_total_sectors:          dw 0                    ; Set to 0. FAT16 usually uses bdb_large_sector_count
+bdb_total_sectors:          dw 65535                    ; Set to 0. FAT16 usually uses bdb_large_sector_count
 bdb_media_descriptor_type:  db 0F8h                 ; F8 = Fixed Disk / Hard Drive
 bdb_sectors_per_fat:        dw 64                   ; Depends on disk size! 
                                                     ; 64 sectors * 512 = 32KB FAT. 
@@ -21,7 +21,7 @@ bdb_sectors_per_fat:        dw 64                   ; Depends on disk size!
 bdb_sectors_per_track:      dw 32                   ; Geometry varies by HDD image type
 bdb_heads:                  dw 64                   ; Geometry varies by HDD image type
 bdb_hidden_sectors:         dd 0
-bdb_large_sector_count:     dd 65536                ; 0x10000. Total sectors (32MB disk size)
+bdb_large_sector_count:     dd 65535                ; 0x10000. Total sectors (32MB disk size)
 
 ; extended boot record
 ebr_drive_number:           db 80h                  ; 0x80 = Hard Drive (C:), 0x00 = Floppy

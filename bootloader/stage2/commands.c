@@ -98,7 +98,7 @@ void ls_command(DISK* disk, DirectoryEntry* currentDirEntry) {
     int j;
     char buffer[13];
 
-    formatDisplayString(currentDirEntry->FileName, buffer);
+    formatDisplayString("mydir/dir", buffer);
     file = open(disk, buffer);
     if (file == NULL)
     {

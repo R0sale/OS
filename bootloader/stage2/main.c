@@ -7,7 +7,7 @@
 
 int _cdecl cstart(uint16_t bootDrive) {
     char buffer[50];
-    char displayName[13];
+    char displayPath[100];
     DirectoryEntry* currentDirEntry;
     DISK disk;
     clear();
