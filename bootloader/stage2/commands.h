@@ -11,7 +11,8 @@ typedef enum {
     CMD_VIEW_DIRS,
     CMD_READ,
     CMD_CHANGE_DIR,
-    CMD_MAKE_DIR
+    CMD_MAKE_DIR,
+    CMD_CALC
 } CommandType;
 
 typedef struct {

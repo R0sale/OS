@@ -2,6 +2,42 @@ bits 16
 
 section _TEXT class=CODE
 
+global __I4M
+__I4M:
+    shl edx, 16        
+    mov dx, ax          
+    mov eax, edx        
+
+    shl ecx, 16         
+    mov cx, bx          
+
+    imul ecx            
+    
+    mov edx, eax
+    shr edx, 16         
+    ret
+
+global __I4D
+__I4D:
+    shl edx, 16         
+    mov dx, ax          
+    mov eax, edx        
+
+    shl ecx, 16         
+    mov cx, bx          
+
+    cdq                 
+    idiv ecx            
+
+    mov edx, eax
+    shr edx, 16
+    ret
+
+global __CHP
+__CHP:
+    fchs
+    ret
+
 global __U4D
 __U4D:
 

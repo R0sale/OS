@@ -6,6 +6,7 @@
 #include "fat.h"
 #include "disk.h"
 #include "memory.h"
+#include "solution.h"
 
 #define MAX_COMMAND_LENGTH 15
 #define MAX_PARAMS 3
@@ -29,6 +30,7 @@ CommandEntry commands[] = {
     {"read", CMD_READ, "reads the file by path"},
     {"cd", CMD_CHANGE_DIR, "changes the directory"},
     {"mkdir", CMD_MAKE_DIR, "creates the directory"},
+    {"calc", CMD_CALC, "calculates the method of finite elements"},
     {NULL, CMD_UNKNOWN, NULL}
 };
 
@@ -84,6 +86,9 @@ void handleCommand(char* buffer, DISK* disk, char* cwd) {
             break;
         case CMD_MAKE_DIR:
             make_directory(disk, params[1], cwd);
+            break;
+        case CMD_CALC:
+            calc();
             break;
         case CMD_UNKNOWN:
             printf("Ya ustal. Net takoi commandi blin.\n\r");
@@ -229,4 +234,13 @@ void update_cwd(char* cwd, DirectoryEntry* dirEntry)
 
     memcpy(cwd + cwdLen, buffer, bufferLen);
     cwd[cwdLen + bufferLen] = '\0';
+}
+
+void calc(void)
+{
+    __asm
+    {
+        finit
+    }
+    solve();
 }
