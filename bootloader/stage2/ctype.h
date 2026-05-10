@@ -4,3 +4,6 @@
 bool isLower(char chr);
 
 char toUpper(char chr);
+
+float fabs(float value);
+

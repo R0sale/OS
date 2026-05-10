@@ -2,6 +2,46 @@ bits 16
 
 section _TEXT class=CODE
 
+global __I4M
+__I4M:
+    ; Вход: DX:AX (Множитель 1), CX:BX (Множитель 2)
+    shl edx, 16         ; Сдвигаем DX в старшую часть EDX
+    mov dx, ax          ; Теперь в EDX лежит всё 32-битное число 1
+    mov eax, edx        ; Копируем в EAX
+
+    shl ecx, 16         ; Сдвигаем CX в старшую часть ECX
+    mov cx, bx          ; Теперь в ECX лежит всё 32-битное число 2
+
+    imul ecx            ; Знаковое умножение. Результат в EDX:EAX
+    
+    ; Watcom ждет 32-битный ответ в DX:AX
+    mov edx, eax
+    shr edx, 16         ; DX = старшие 16 бит, AX = младшие 16 бит
+    ret
+
+global __I4D
+__I4D:
+    ; Вход: DX:AX (Делимое), CX:BX (Делитель)
+    shl edx, 16         
+    mov dx, ax          
+    mov eax, edx        ; EAX = Делимое
+
+    shl ecx, 16         
+    mov cx, bx          ; ECX = Делитель
+
+    cdq                 ; ВАЖНО! Знаковое расширение EAX в EDX перед делением
+    idiv ecx            ; Знаковое деление. EAX = частное, EDX = остаток
+
+    ; Watcom ждет частное в DX:AX
+    mov edx, eax
+    shr edx, 16
+    ret
+
+global __CHP
+__CHP:
+    fchs
+    ret
+
 global __U4D
 __U4D:
 

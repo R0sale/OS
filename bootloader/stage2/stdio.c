@@ -67,6 +67,7 @@ void readPrompt(char* buffer)
 #define PRINTF_LENGTH_LONG_LONG     4
 
 int* printf_number(int* argp, int length, bool sign, int radix);
+int* printf_float(int* argp);
 
 void _cdecl printf(const char* fmt, ...)
 {
@@ -163,6 +164,9 @@ void _cdecl printf(const char* fmt, ...)
 
                     case 'o':   radix = 8; sign = false;
                                 argp = printf_number(argp, length, sign, radix);
+                                break;
+                    
+                    case 'f':   argp = printf_float(argp);
                                 break;
 
                     // ignore invalid spec
@@ -265,6 +269,75 @@ int* printf_number(int* argp, int length, bool sign, int radix)
     // print number in reverse order
     while (--pos >= 0)
         putc(buffer[pos]);
+
+    return argp;
+}
+
+int* printf_float(int* argp)
+{
+    /* 1. Read EXACTLY 4 bytes (a float) from the stack, NOT 8! */
+    float raw_val;
+    
+
+    /* 3. Now safely cast it to a double for our FPU math */
+    double val = (double)raw_val;
+    
+    long int_part; 
+    long frac_int; 
+    double frac_part; 
+    char int_buffer[32];
+    int pos = 0;
+    uint32_t rem;
+    char frac_buffer[6];
+    int i;
+    unsigned long long temp_int;
+    unsigned long long temp_frac;
+    
+    raw_val = *(float*)argp;
+    
+    /* 2. Advance the pointer by the size of a float (4 bytes) */
+    argp += (sizeof(float) / sizeof(int));
+
+    /* Safely check for negative (using your awesome __CHP stub!) */
+    if (val < 0.0) {
+        putc('-');
+        val = -val; 
+    }
+
+    /* Convert using native FPU hardware */
+    int_part = (long)val;
+    frac_part = val - (double)int_part;
+    
+    frac_int = (long)(frac_part * 1000000.0 + 0.5);
+
+    /* Cast to 64-bit integer purely for your division algorithm */
+    temp_int = (unsigned long long)int_part;
+
+    if (temp_int == 0) {
+        int_buffer[pos++] = '0';
+    } else {
+        do {
+            x86_div64_32(temp_int, 10, &temp_int, &rem);
+            int_buffer[pos++] = g_HexChars[rem];
+        } while (temp_int > 0);
+    }
+
+    while (--pos >= 0) {
+        putc(int_buffer[pos]);
+    }
+
+    putc('.');
+
+    pos = 0;
+    temp_frac = (unsigned long long)frac_int;
+    for (i = 0; i < 6; i++) {
+        x86_div64_32(temp_frac, 10, &temp_frac, &rem);
+        frac_buffer[pos++] = g_HexChars[rem];
+    }
+
+    while (--pos >= 0) {
+        putc(frac_buffer[pos]);
+    }
 
     return argp;
 }
